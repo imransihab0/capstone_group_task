@@ -19,7 +19,21 @@ from app.db import append_audit_log, db_session, run_migrations, utc_now_iso, ve
 from app.security import create_access_token, require_roles, verify_password
 from app.telemetry import ingest_telemetry_point, seed_initial_data, telemetry_simulator_loop
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent
+def get_frontend_dir() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent.parent.parent,
+        Path(__file__).resolve().parent.parent,
+        Path.cwd(),
+        Path("/var/task"),
+        Path("/var/task/backend"),
+    ]
+    for c in candidates:
+        if (c / "index.html").is_file():
+            return c.resolve()
+    return candidates[0].resolve()
+
+
+FRONTEND_DIR = get_frontend_dir()
 
 
 class LoginRequest(BaseModel):
@@ -359,15 +373,28 @@ async def verify_audit_integrity(
 # Serve static frontend files at '/' without blocking threadpools
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
+    f_dir = get_frontend_dir()
     rel = full_path.lstrip("/") or "index.html"
-    target = (FRONTEND_DIR / rel).resolve()
+    target = (f_dir / rel).resolve()
     try:
-        target.relative_to(FRONTEND_DIR.resolve())
+        target.relative_to(f_dir)
     except ValueError:
         raise HTTPException(status_code=403, detail="Forbidden")
     if target.is_dir():
         target = target / "index.html"
     if not target.is_file():
-        raise HTTPException(status_code=404, detail="Not found")
+        fallback_index = f_dir / "index.html"
+        if fallback_index.is_file():
+            target = fallback_index
+        else:
+            raise HTTPException(status_code=404, detail="Not found")
     media_type, _ = mimetypes.guess_type(str(target))
-    return Response(content=target.read_bytes(), media_type=media_type or "application/octet-stream")
+    headers = {}
+    if target.name == "sw.js":
+        headers["Service-Worker-Allowed"] = "/"
+        headers["Cache-Control"] = "no-cache"
+    return Response(
+        content=target.read_bytes(),
+        media_type=media_type or "application/octet-stream",
+        headers=headers,
+    )
