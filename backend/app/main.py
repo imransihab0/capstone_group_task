@@ -86,7 +86,7 @@ async def lifespan(_app: FastAPI):
     run_migrations()
     seed_initial_data()
     task = None
-    if os.environ.get("COLDCHAIN_DISABLE_SIMULATOR") != "1":
+    if os.environ.get("COLDCHAIN_DISABLE_SIMULATOR") != "1" and not os.environ.get("VERCEL"):
         interval = int(os.environ.get("COLDCHAIN_SIM_INTERVAL", "30"))
         task = asyncio.create_task(telemetry_simulator_loop(interval))
     try:

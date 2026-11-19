@@ -17,7 +17,11 @@ DEFAULT_DB_PATH = BASE_DIR / "coldchain.db"
 
 def get_db_path() -> Path:
     """Return the configured SQLite database path."""
-    return Path(os.environ.get("COLDCHAIN_DB_PATH", str(DEFAULT_DB_PATH)))
+    if "COLDCHAIN_DB_PATH" in os.environ:
+        return Path(os.environ["COLDCHAIN_DB_PATH"])
+    if os.environ.get("VERCEL"):
+        return Path("/tmp/coldchain.db")
+    return Path(DEFAULT_DB_PATH)
 
 
 def utc_now_iso() -> str:
@@ -54,10 +58,17 @@ def db_session(db_path: Optional[Path] = None) -> Iterator[sqlite3.Connection]:
 
 def run_migrations(
     db_path: Optional[Path] = None,
-    migrations_dir: Path = MIGRATIONS_DIR,
+    migrations_dir: Optional[Path] = None,
     max_version: Optional[str] = None,
 ) -> list[str]:
     """Execute pending SQL migrations in lexical order without data loss."""
+    if migrations_dir is None:
+        if MIGRATIONS_DIR.exists():
+            migrations_dir = MIGRATIONS_DIR
+        elif (Path.cwd() / "backend" / "migrations").exists():
+            migrations_dir = Path.cwd() / "backend" / "migrations"
+        else:
+            migrations_dir = MIGRATIONS_DIR
     applied_now: list[str] = []
     with db_session(db_path) as conn:
         conn.execute(
