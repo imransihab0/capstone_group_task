@@ -44,6 +44,6 @@ window.addEventListener('offline', updateNet);
 
 (async () => {
   if (APP_CONFIG.USE_MOCK) { await import('./mock-api.js'); $('#demo').classList.remove('hidden'); } // DEV ONLY — remove for production
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
   updateNet(); sync(); route();
 })();
