@@ -31,15 +31,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": [
-        "migrations/**",
-        "index.html",
-        "manifest.json",
-        "sw.js",
-        "css/**",
-        "js/**",
-        "icons/**"
-      ],
+      "includeFiles": "**",
       "maxDuration": 15
     }
   }
